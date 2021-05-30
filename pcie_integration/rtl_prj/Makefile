@@ -1,52 +1,170 @@
-# io_global Application
-COMMON_REPO:=/net/af5/vqd8a/Xilinx-SDAccel/SDAccel_Examples
 
-include $(COMMON_REPO)/utility/boards.mk
-include $(COMMON_REPO)/libs/xcl/xcl.mk
-include $(COMMON_REPO)/libs/opencl/opencl.mk
+#
+# Copyright 2019-2020 Xilinx, Inc.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+# makefile-generator v1.0.3
+#
 
-# io_global Host Application
-io_global_SRCS=../io_global_bandwidth_real.cpp $(xcl_SRCS)
-io_global_HDRS=$(xcl_HDRS)
-io_global_CXXFLAGS=-DUSE_NDDR $(xcl_CXXFLAGS) $(opencl_CXXFLAGS)
-io_global_LDFLAGS=$(opencl_LDFLAGS)
+############################## Help Section ##############################
+.PHONY: help
 
-EXES=io_global
+help::
+	$(ECHO) "Makefile Usage:"
+	$(ECHO) "  make all TARGET=<sw_emu/hw_emu/hw> DEVICE=<FPGA platform>"
+	$(ECHO) "      Command to generate the design for specified Target and Device."
+	$(ECHO) ""
+	$(ECHO) "  make clean "
+	$(ECHO) "      Command to remove the generated non-hardware files."
+	$(ECHO) ""
+	$(ECHO) "  make cleanall"
+	$(ECHO) "      Command to remove all the generated files."
+	$(ECHO) ""
+	$(ECHO) "  make check TARGET=<sw_emu/hw_emu/hw> DEVICE=<FPGA platform>"
+	$(ECHO) "      Command to run application in emulation."
+	$(ECHO) ""
+	$(ECHO) "  make build TARGET=<sw_emu/hw_emu/hw> DEVICE=<FPGA platform>"
+	$(ECHO) "      Command to build xclbin application."
+	$(ECHO) ""
+	$(ECHO) "  make run_nimbix DEVICE=<FPGA platform>"
+	$(ECHO) "      Command to run application on Nimbix Cloud."
+	$(ECHO) ""
+	$(ECHO) "  make aws_build DEVICE=<FPGA platform>"
+	$(ECHO) "      Command to build AWS xclbin application on AWS Cloud."
+	$(ECHO) ""
 
-bandwidth_KERNEL := bandwidth
-
-# RTL Kernel Sources
-bandwidth_HDLSRCS=../vv_prj/kernel.xml\
-                  ../vv_prj/package_kernel.tcl\
-                  ../vv_prj/gen_xo.tcl\
-                  ../vv_prj/hdl/*.v\
-                  ../vv_prj/hdl/*.vhd
-bandwidth_TCL=../vv_prj/gen_xo.tcl
-
-CLFLAGS+=
-LDCLFLAGS+= \
-    --xp misc:map_connect=add.kernel.bandwidth_1.M_AXI_GMEM0.core.OCL_REGION_0.M00_AXI \
-    --xp misc:map_connect=add.kernel.bandwidth_1.M_AXI_GMEM1.core.OCL_REGION_0.M01_AXI
-
-RTLXOS=bandwidth
-
-# Kernel
-bandwidth_XOS=bandwidth
-bandwidth_NTARGETS=sw_emu
-
-XCLBINS=bandwidth
-EXTRA_CLEAN=tmp_kernel_pack* packaged_kernel* $(bandwidth_KERNEL).xo
-
-# check
-check_EXE=io_global
-check_XCLBINS=bandwidth
-check_NTARGETS=$(bandwidth_NTARGETS)
-
-CHECKS=check
-
-#Reporting warning if targeting for sw_emu
-ifneq (,$(findstring sw_emu,$(TARGETS)))
-$(warning WARNING:RTL Kernels do not support sw_emu TARGETS. Please use hw_emu for running RTL kernel Emulation)
+TARGET := hw
+ifeq ($(TARGET), hw_emu)
+TARGET := hw_emu
 endif
 
-include $(COMMON_REPO)/utility/rules.mk
+ifeq ($(TARGET),hw_emu)
+XCL_EMULATION_MODE=hw_emu;
+endif
+
+HOST_ARCH := x86
+
+#Checks for XILINX_XRT
+ifndef XILINX_VITIS
+$(error XILINX_VITIS is not set. Please source the Vitis settings64.{csh,sh} first)
+endif
+
+ifndef XILINX_XRT
+$(error XILINX_XRT is not set. Please source the XRT /opt/xilinx/xrt/setup.sh first)
+endif
+
+check-devices:
+ifndef DEVICE
+	$(error DEVICE not set. Please set the DEVICE properly and rerun. Run "make help" for more details.)
+endif
+
+#   device2xsa - create a filesystem friendly name from device name
+#   $(1) - full name of device
+device2xsa = $(strip $(patsubst %.xpfm, % , $(shell basename $(DEVICE))))
+
+# Points to Utility Directory
+XF_PROJ_ROOT =/home/users/domenico.parente/REAPR_V
+
+
+COMMON_REPO:=/home/users/domenico.parente/REAPR_V/pcie_integration/rtl_prj/
+
+
+
+XSA := 
+ifneq ($(DEVICE), )
+XSA := $(call device2xsa, $(DEVICE))
+endif
+
+
+TEMP_DIR := ./x.$(TARGET).$(XSA)
+BUILD_DIR := ./build_dir.$(TARGET).$(XSA)
+
+VPP := v++
+CMD_ARGS = $(BUILD_DIR)/bandwidth.xclbin
+
+include config.mk
+
+CXXFLAGS += -I${XILINX_XRT}/include/  -I$XILINX_VIVADO/include -Wall -O0 -g -std=c++11
+LDFLAGS += -L$XILINX_XRT/lib/ -lOpenCL -lpthread
+
+############################## Setting up Host Variables ##############################
+#Include Required Host Source Files
+HOST_SRCS +=../io_global_bandwidth_real.cpp
+# Host compiler global settings
+CXXFLAGS += -fmessage-length=0
+LDFLAGS += -lrt -lstdc++ 
+
+############################## Setting up Kernel Variables ##############################
+# Kernel compiler global settings
+VPP_FLAGS += -t $(TARGET) --platform $(DEVICE) --save-temps 
+ifneq ($(TARGET), hw)
+	VPP_FLAGS += -g
+endif
+
+
+EXECUTABLE = ./bandwidth
+
+############################## Declaring Binary Containers ##############################
+BINARY_CONTAINERS += $(BUILD_DIR)/bandwidth.xclbin
+BINARY_CONTAINER_bandwidth_OBJS += $(TEMP_DIR)/bandwidth.xo
+
+############################## Setting Targets ##############################
+CP = cp -rf
+
+.PHONY: all clean cleanall emconfig
+all: check-devices $(EXECUTABLE) $(BINARY_CONTAINERS) emconfig
+
+.PHONY: host
+host: $(EXECUTABLE)
+
+.PHONY: build
+build: check-vitis $(BINARY_CONTAINERS)
+
+.PHONY: xclbin
+xclbin: build
+
+# Building kernel
+$(BUILD_DIR)/bandwidth.xclbin: $(BINARY_CONTAINER_bandwidth_OBJS)
+	mkdir -p $(BUILD_DIR)
+	$(VPP) $(VPP_FLAGS) -l --temp_dir $(TEMP_DIR) -o'$(BUILD_DIR)/bandwidth.xclbin' $(+)
+
+############################## Setting Rules for Host (Building Host Executable) ##############################
+$(EXECUTABLE): $(HOST_SRCS)
+		$(CXX) -o $@ $^ $(CXXFLAGS) $(LDFLAGS)
+
+emconfig:$
+	emconfigutil --platform $(DEVICE) --od $(COMMON_REPO)
+
+############################## Setting Essential Checks and Running Rules ##############################
+run: all
+	$(EXECUTABLE) $(CMD_ARGS)
+
+ifneq ($(TARGET),$(findstring $(TARGET), hw hw_emu))
+$(error Application supports only hw hw_emu TARGET. Please use the target for running the application)
+endif
+
+############################## Cleaning Rules ##############################
+RM = rm -f
+RMDIR = rm -rf
+
+# Cleaning stuff
+clean:
+	-$(RMDIR) $(EXECUTABLE) $(XCLBIN)/{*sw_emu*,*hw_emu*} 
+	-$(RMDIR) profile_* TempConfig system_estimate.xtxt *.rpt *.csv 
+	-$(RMDIR) *.ll *v++* .Xil emconfig.json dltmp* xmltmp* *.log *.jou *.wcfg *.wdb
+
+cleanall: clean
+	-$(RMDIR) build_dir*
+	-$(RMDIR) package.*
+	-$(RMDIR) _x* *xclbin.run_summary qemu-memory-_* emulation _vimage pl* start_simulation.sh *.xclbin
+	-$(RMDIR) ./tmp_kernel_pack* ./packaged_kernel* 

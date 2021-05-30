@@ -4,8 +4,8 @@
 # Collaborating author: Chunkun Bo (cb2yy@virginia.edu) for automata hook
 A2H_PATH=$REAPR_HOME/a2h
 TOOL_PATH=$REAPR_HOME/pcie_integration/python_tools
-SDACCEL_REPO_PATH=/net/af5/vqd8a/Xilinx-SDAccel/SDAccel_Examples
-
+REPO_PATH=$REAPR_HOME/pcie_integration/rtl_prj/
+REAPR_PATH=$REAPR_HOME
 PROJ_PATH=$REAPR_HOME/pcie_integration
 
 #############################################
@@ -27,7 +27,7 @@ MAX_DATASIZE_MB=10
 # number of DDR banks available to your board
 DDR_BANKS=4
 # which FPGA device
-DEVICE_NAME="xcku115-flvb2104-2-e"
+DEVICE_NAME="xcu200-fsgd2104-2-e"
 # target synthesis frequency - may need to manually change based on timing performance w/ vivado
 CLK_FREQ_MHZ=300
 #IO_TEST: Set to 1 if running I/O kernel only, otherwise set to 0 for automata module hooking
@@ -40,7 +40,7 @@ set -e
 if [ $IO_TEST = 0 ]; then
     echo "1.Generate automata processing RTL module"
     cd $A2H_PATH
-    python a2h.py -a $ANML -o $OUTFILE -e $ENTITY -t $TARGET
+    python3 a2h.py -a $ANML -o $OUTFILE -e $ENTITY -t $TARGET
     cp OutputFiles/$OUTFILE $PROJ_PATH/vv_prj/hdl
     cp Resources/ste_sim.vhd $PROJ_PATH/vv_prj/hdl
 fi
@@ -60,20 +60,22 @@ python $TOOL_PATH/copy_kernel_c_gen.py $REPORT_SIZE $MAX_DATASIZE_MB
 echo "5.Generate I/O template script"
 python $TOOL_PATH/iotemplatescript_gen.py $DEVICE_NAME $CLK_FREQ_MHZ
 
+cd /xilinx/software/Vitis_HLS/2020.2/
+source settings64.sh
 cd $PROJ_PATH/vhls_prj
 echo "6.Generate I/O template kernel (RTL)"
-vivado_hls -f test_io/solution1/iotemplate_script.tcl
+vitis_hls -f test_io/solution1/iotemplate_script.tcl
 
 if [ $IO_TEST = 0 ]; then
     #Hook automata module to the IO kernel
     echo "7.Hook automata module to the IO kernel"
     python $TOOL_PATH/automatahook.py $REPORT_SIZE test_io/solution1/impl/verilog/bandwidth.v $ENTITY > bandwidth.v
-    #Update the IO kernel in the vivado project 
-    mv test_io/solution1/impl/verilog/bandwidth.v test_io/solution1/impl/verilog/bandwidth.v_ORIG 
-    cp bandwidth.v test_io/solution1/impl/verilog/
-    cp test_io/solution1/impl/verilog/*.v $PROJ_PATH/vv_prj/hdl
+#Update the IO kernel in the vivado project 
+   mv test_io/solution1/impl/verilog/bandwidth.v test_io/solution1/impl/verilog/bandwidth.v_ORIG 
+   cp bandwidth.v test_io/solution1/impl/verilog/
+   cp test_io/solution1/impl/verilog/*.v $PROJ_PATH/vv_prj/hdl
 else
-    cp test_io/solution1/impl/verilog/*.v $PROJ_PATH/vv_prj/hdl
+   cp test_io/solution1/impl/verilog/*.v $PROJ_PATH/vv_prj/hdl
 fi
 
 #Generate kernel description XML file
@@ -87,9 +89,9 @@ python $TOOL_PATH/package_kernel_tcl_gen.py $REPORT_SIZE $IO_TEST
 
 #Generate Makefile
 echo "10.Generate Makefile"
-python $TOOL_PATH/makefile_gen.py $SDACCEL_REPO_PATH $REPORT_SIZE $DDR_BANKS $IO_TEST
+python $TOOL_PATH/makefile_gen.py $REPO_PATH $REPORT_SIZE $DDR_BANKS $IO_TEST $REAPR_PATH
 
-#Compile the project using SDAccel (including generating IP and XO files from the RTL kernel)
+#Compile the project using Vitis (including generating IP and XO files from the RTL kernel)
 echo "11.Compile"
 cd $PROJ_PATH/rtl_prj
-nohup make all TARGETS=hw &
+nohup make all TARGET=hw_emu DEVICE=xilinx_u200_xdma_201830_2

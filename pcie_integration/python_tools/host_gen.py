@@ -1,7 +1,4 @@
 # -*- coding: utf-8 -*-
-"""
-@author: VinhDang
-"""
 
 import sys
 import math
@@ -38,78 +35,55 @@ if (io_test == 0):
 else:
     output_file=open('io_global_bandwidth.cpp','w')
 
-code_string="""/**********
-Copyright (c) 2017, Xilinx, Inc.
-All rights reserved.
-
-Redistribution and use in source and binary forms, with or without modification,
-are permitted provided that the following conditions are met:
-
-1. Redistributions of source code must retain the above copyright notice,
-this list of conditions and the following disclaimer.
-
-2. Redistributions in binary form must reproduce the above copyright notice,
-this list of conditions and the following disclaimer in the documentation
-and/or other materials provided with the distribution.
-
-3. Neither the name of the copyright holder nor the names of its contributors
-may be used to endorse or promote products derived from this software
-without specific prior written permission.
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
-ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
-THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
-IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
-PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
-HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
-OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
-EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-**********/
+code_string="""
+/**
+* Copyright (C) 2020 Xilinx, Inc
+*
+* Licensed under the Apache License, Version 2.0 (the "License"). You may
+* not use this file except in compliance with the License. A copy of the
+* License is located at
+*
+*     http://www.apache.org/licenses/LICENSE-2.0
+*
+* Unless required by applicable law or agreed to in writing, software
+* distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+* WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+* License for the specific language governing permissions and limitations
+* under the License.
+*/
 /*****************************************************************************************
 *  GUI Flow :
-*      
-*  By default this example supports 1DDR execution in GUI mode for 
-*  all the DSAs. To make this example to work with multi DDR DSAs
+*
+*  By default this example supports 1DDR execution in GUI mode for
+*  all the XSAs. To make this example to work with multi DDR XSAs
 *  please follow steps mentioned below.
 *
-*  Note : "bandwidth" in map_connect options below is the kernel name defined in kernel.cl   
-*
 *  ***************************************************************************************
-*  DSA  (2DDR):
-*              
-*  1.<SDx Project> > Properties > C/C++ Build > Settings > SDx XOCC Kernel Compiler 
-*                  > Miscellaneous > Other flags
-*  2.In "Other flags" box enter following
-*     a. --max_memory_ports all 
-*     b. --xp misc:map_connect=add.kernel.bandwidth_1.M_AXI_GMEM0.core.OCL_REGION_0.M00_AXI
-*     c. --xp misc:map_connect=add.kernel.bandwidth_1.M_AXI_GMEM1.core.OCL_REGION_0.M01_AXI 
-*  3.<SDx Project> > Properties > C/C++ Build > Settings > SDx XOCC Kernel Linker
-*                  > Miscellaneous > Other flags
-*  4.Repeat step 2 above
+*  XSA  (2DDR):
 *
-* *****************************************************************************************
-*  DSA  (4DDR):
-*              
-*  1.<SDx Project> > Properties > C/C++ Build > Settings > SDx XOCC Kernel Compiler 
+*  1. Add a .cfg file in the <Project>/src folder with the following entries:
+*  	    [Connecttivity]
+*  	    sp=bandwidth_1.m_axi_gmem0:DDR[0]
+*     	    sp=bandwidth_1.m_axi_gmem1:DDR[1]
+*
+*     For more number of DDR connections add more sp tags as shown above in the
+*cfg file.
+*     Note : Replace DDR[0] with HP0, DDR[1] with HP1 for embedded platforms(zc)
+*  2.<Vitis Project> > Properties > C/C++ Build > Settings > Vitis V++ Kernel
+*Linker
 *                  > Miscellaneous > Other flags
-*  2.In "Other flags" box enter following
-*     a. --max_memory_ports all 
-*     b. --xp misc:map_connect=add.kernel.bandwidth_1.M_AXI_GMEM0.core.OCL_REGION_0.M00_AXI
-*     c. --xp misc:map_connect=add.kernel.bandwidth_1.M_AXI_GMEM1.core.OCL_REGION_0.M01_AXI 
-*     d. --xp misc:map_connect=add.kernel.bandwidth_1.M_AXI_GMEM2.core.OCL_REGION_0.M02_AXI 
-*     e. --xp misc:map_connect=add.kernel.bandwidth_1.M_AXI_GMEM3.core.OCL_REGION_0.M03_AXI 
-*  3.<SDx Project> > Properties > C/C++ Build > Settings > SDx XOCC Kernel Linker
-*                  > Miscellaneous > Other flags
-*  4.Repeat step 2 above
-*  5.Define NUM_BANKS_4 macro in kernel "#define NUM_BANKS_4" at the top of kernel.cl 
-* 
+*     --config ../src/<config_file>.cfg
+*  3. Default number of banks for CLI flow is 2 banks, for GUI flow is 1 bank.
+*     For 3 or 4 DDR connections, "#define NDDR_BANKS <3 or 4>" at the top of
+*kernel.cpp
 * *****************************************************************************************
 *
 *  CLI Flow:
 *
-*  In CLI flow makefile detects the DDR of a device and based on that
-*  automatically it adds all the flags that are necessary. This example can be
+*  In CLI flow makefile detects the DDR of a device on the basis of ddr_banks
+*variable in config.mk file
+*  and based on that automatically it adds all the flags that are necessary.
+*This example can be
 *  used similar to other examples in CLI flow, extra setup is not needed.
 *
 *********************************************************************************************/
@@ -120,10 +94,14 @@ EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <string.h>
 #include <sys/time.h>
 #include <sys/stat.h>
-
-#include "xcl.h"
-#include <CL/cl_ext.h>
+#include <vector>
+#include "xcl2.hpp"
 #include "copy_kernel.h"
+
+
+#ifndef NDDR_BANKS
+#define NDDR_BANKS 1
+#endif
 
 /////////////////////////////////////////////////////////////////////////////////
 size_t getFilesize(const char* filename) {
@@ -133,50 +111,51 @@ size_t getFilesize(const char* filename) {
     }
     return st.st_size;   
 }
+
 /////////////////////////////////////////////////////////////////////////////////
-uint8_t get_ddr_banks(xcl_world world) {
-    char* ddr_loc = strstr(world.device_name, "ddr");
-
-    /* if the ddr identifier is at the front of the string or NULL is returned
-     * then reading the previous char is dangerous so just assume 1 bank */
-    if(ddr_loc == NULL || ddr_loc == world.device_name) {
-        return 1;
-    }
-
-    /* The letter before contains the number of banks */
-    ddr_loc--;
-
-    /* Subtract from '0' to find the number of banks in uint8_t */
-    return (uint8_t) *ddr_loc - (uint8_t) '0';
-}
 
 int main(int argc, char** argv) {
 
-"""
-if (io_test == 0):
-    code_string=code_string+"""    if(argc != 2) {
-        printf("Usage: %s input_file_name\\n", argv[0]);
+	if (argc != 2) {
+        std::cout << "Usage: " << argv[0] << " <XCLBIN File>" << std::endl;
         return EXIT_FAILURE;
     }
 	
-    xcl_world world = xcl_world_single();
-    cl_program program = xcl_import_binary(world, "bandwidth");
-    cl_kernel krnl = xcl_get_kernel(program, "bandwidth");
 
-    int err;
+std::string binaryFile = argv[1];
 
-    size_t globalbuffersize  = DATA_SIZE;\n"""
-else:
-    code_string=code_string+"""    if(argc != 1) {
-        printf("Usage: %s\\n", argv[0]);
-        return EXIT_FAILURE;
+    cl_int err;
+    cl::CommandQueue q;
+    cl::Context context;
+    cl::Kernel bandwidth;
+    auto devices = xcl::get_xil_devices();
+    // read_binary_file() is a utility API which will load the binaryFile
+    // and will return the pointer to file buffer.
+    auto fileBuf = xcl::read_binary_file(binaryFile);
+    cl::Program::Binaries bins{{fileBuf.data(), fileBuf.size()}};
+    bool valid_device = false;
+    for (unsigned int i = 0; i < devices.size(); i++) {
+        auto device = devices[i];
+        // Creating Context and Command Queue for selected Device
+        OCL_CHECK(err, context = cl::Context(device, nullptr, nullptr, nullptr, &err));
+        OCL_CHECK(err, q = cl::CommandQueue(context, device, CL_QUEUE_PROFILING_ENABLE, &err));
+
+        std::cout << "Trying to program device[" << i << "]: " << device.getInfo<CL_DEVICE_NAME>() << std::endl;
+        cl::Program program(context, {device}, bins, nullptr, &err);
+        if (err != CL_SUCCESS) {
+            std::cout << "Failed to program device[" << i << "] with xclbin file!\\n";
+    	} else {
+            std::cout << "Device[" << i << "]: program successful!\\n";
+            OCL_CHECK(err, bandwidth = cl::Kernel(program, "bandwidth", &err));
+            valid_device = true;
+            break; // we break because we found a valid device
+        }
     }
-	
-    xcl_world world = xcl_world_single();
-    cl_program program = xcl_import_binary(world, "bandwidth");
-    cl_kernel krnl = xcl_get_kernel(program, "bandwidth");
+    if (!valid_device) {
+        std::cout << "Failed to program any device found, exit!\\n";
+        exit(EXIT_FAILURE);
+    }
 
-    int err;
 
     size_t globalbuffersize  = DATA_SIZE;\n"""
 
@@ -203,7 +182,7 @@ code_string=code_string+"""    //variables for profiling
 	
     /* Input buffer */
     unsigned char *input_host = ((unsigned char *)malloc(globalbuffersize));
-    if(input_host==NULL) {
+    if(input_host== nullptr) {
         printf("Error: Failed to allocate host side copy of OpenCL source buffer of size %ld\\n",globalbuffersize);
         return EXIT_FAILURE;
     }
@@ -221,7 +200,7 @@ code_string=code_string+"""    //variables for profiling
 	
     unsigned int i;
 """
-if (io_test == 0):
+if (io_test == 1):
     code_string=code_string+"""
     FILE *fp;
     fp = fopen(argv[1],"r");
@@ -235,7 +214,7 @@ if (io_test == 0):
 else:
     code_string=code_string+"""
     for(i=0; i<globalbuffersize; i++){
-		unsigned int imod = i%9;
+		unsigned int imod = i%256;
 		switch(imod)
 		{
 			case 0:
@@ -268,16 +247,16 @@ else:
     }
 """
 code_string=code_string+"""
-    short ddr_banks = get_ddr_banks(world); printf("Total_DDR_Banks = %d\\n", ddr_banks);
+    short ddr_banks = NDDR_BANKS; printf("Total_DDR_Banks = %d\\n", ddr_banks);
  
-    cl_mem input_buffer;
+    cl::Buffer* input_buffer;
 #ifdef USE_NDDR
     cl_mem_ext_ptr_t input_buffer_ext;
     input_buffer_ext.flags = XCL_MEM_DDR_BANK0;
     input_buffer_ext.obj = NULL;
     input_buffer_ext.param = 0;
 
-    input_buffer = clCreateBuffer(world.context,
+    input_buffer = new cl::Buffer (context,
                                   CL_MEM_READ_WRITE | CL_MEM_EXT_PTR_XILINX,
                                   globalbuffersize,
                                   &input_buffer_ext,
@@ -289,7 +268,7 @@ code_string=code_string+"""
     else
         printf("Allocated OpenCL source buffer of size %ld on bank %d\\n", globalbuffersize, XCL_MEM_DDR_BANK0);
 #else
-    input_buffer = clCreateBuffer(world.context,
+    input_buffer = new cl::Buffer (context,
                                   CL_MEM_READ_WRITE,
                                   globalbuffersize,
                                   NULL,
@@ -303,7 +282,7 @@ code_string=code_string+"""
 #endif
 
     //output buffer
-    cl_mem"""
+    cl::Buffer*"""
 
 for i in range(0,numa+numb):
     if (i==0):
@@ -330,7 +309,7 @@ for i in range(0,numa+numb):
     code_string=code_string+temp_string1+'param = 0;\n\n'
 
 for i in range(0,numa+numb):
-    code_string=code_string+'    output_buffer'+str(i)+""" = clCreateBuffer(world.context,
+    code_string=code_string+'    output_buffer'+str(i)+""" = new cl::Buffer(context,
                                    CL_MEM_READ_WRITE | CL_MEM_EXT_PTR_XILINX,\n"""
     if (numa==0):
         temp_string='globaloutputsizeB'
@@ -356,7 +335,7 @@ for i in range(0,numa+numb):
 code_string=code_string+'#else\n'
 
 for i in range(0,numa+numb):
-    code_string=code_string+'    output_buffer'+str(i)+""" = clCreateBuffer(world.context,
+    code_string=code_string+'    output_buffer'+str(i)+""" = new cl::Buffer(context,
                                    CL_MEM_READ_WRITE,\n"""
     if (numa==0):
         temp_string='globaloutputsizeB'
@@ -379,7 +358,7 @@ for i in range(0,numa+numb):
     code_string=code_string+temp_string+');\n\n'
 code_string=code_string+'#endif\n\n'
 
-code_string=code_string+"""    //cl_ulong num_blocks = globalbuffersize/64;
+code_string=code_string+"""    
     double dbytes = globalbuffersize;
     double dmbytes = dbytes / (((double)1024) * ((double)1024));
     printf("Starting kernel to read/write %.0lf MB bytes from/to global memory... \\n", dmbytes);
@@ -389,61 +368,61 @@ code_string=code_string+"""    //cl_ulong num_blocks = globalbuffersize/64;
     /* Write input buffer */
     /* Map input buffer for PCIe write */
     unsigned char *map_input_buffer;
-    map_input_buffer = (unsigned char *) clEnqueueMapBuffer(world.command_queue,
-                                                             input_buffer,
+    map_input_buffer = (unsigned char *) q.enqueueMapBuffer( *input_buffer,
                                                              CL_FALSE,
                                                              CL_MAP_WRITE_INVALIDATE_REGION,
                                                              0,
                                                              globalbuffersize,
-                                                             0,
-                                                             NULL,
-                                                             NULL,
+                                                             nullptr,
+                                                             nullptr,
                                                              &err);
     if (err != CL_SUCCESS) {
-        printf("Error: Failed to clEnqueueMapBuffer OpenCL buffer\\n");
+        printf("Error: Failed to EnqueueMapBuffer OpenCL buffer\\n");
         return EXIT_FAILURE;
     } else {
         printf("SUCCESS: Allocated input buffer memory.\\n");
     }
-    clFinish(world.command_queue);
+    q.finish();
 
-    /* prepare data to be written to the device */
+    /* Prepare data to be written to the device */
     memcpy(map_input_buffer, input_host, globalbuffersize);
 
-    err = clEnqueueUnmapMemObject(world.command_queue,
-                                  input_buffer,
-                                  map_input_buffer,
-                                  0,
-                                  NULL,
-                                  NULL);
+    err = q.enqueueUnmapMemObject(*input_buffer,
+                                  map_input_buffer);
     if (err != CL_SUCCESS) {
         printf("Error: Failed to copy input dataset to OpenCL buffer\\n");
         return EXIT_FAILURE;
     } else {
         printf("SUCCESS: Copied input data to input buffer.\\n");
     }
-    clFinish(world.command_queue);
+    q.finish();
 
     gettimeofday(&end_tin, NULL);
+
+	unsigned long start, end, nsduration1, nsduration2;
+    cl::Event event;
 	
     /* Execute kernel */
-    int arg_index = 0;
-
-    xcl_set_kernel_arg(krnl, arg_index++, sizeof(cl_mem), &input_buffer);\n"""
-for i in range(0,numa+numb):
-    code_string=code_string+'    xcl_set_kernel_arg(krnl, arg_index++, sizeof(cl_mem), &output_buffer'+str(i)+');\n'
-code_string=code_string+'\n'	
+	int arg_index = 0;
+	printf("Starting kernel execution.\\n");
+ 	OCL_CHECK(err, err = bandwidth.setArg(arg_index++, *input_buffer));
+    OCL_CHECK(err, err = bandwidth.setArg(arg_index++, *output_buffer0));
+	
+"""
 
 if (io_test == 0):
     code_string=code_string+"""    gettimeofday(&start_t1, NULL);
    
-    unsigned long nsduration1 = xcl_run_kernel3d(world, krnl, 1, 1, 1);
-
+    OCL_CHECK(err, err = q.enqueueTask(bandwidth, nullptr, &event));
+    OCL_CHECK(err, err = event.wait());
+    end = OCL_CHECK(err, event.getProfilingInfo<CL_PROFILING_COMMAND_END>(&err));
+    start = OCL_CHECK(err, event.getProfilingInfo<CL_PROFILING_COMMAND_START>(&err));
+    nsduration1 = end - start;
     gettimeofday(&end_t1, NULL);
 	
     gettimeofday(&start_t2, NULL);
 
-    unsigned long nsduration2 = 0;
+    nsduration2 = 0;
 
     gettimeofday(&end_t2, NULL);
 
@@ -453,14 +432,18 @@ if (io_test == 0):
     unsigned char"""
 else:
     code_string=code_string+"""    gettimeofday(&start_t1, NULL);
-   
-    unsigned long nsduration1 = xcl_run_kernel3d(world, krnl, 1, 1, 1);
+
+	OCL_CHECK(err, err = q.enqueueTask(bandwidth, nullptr, &event));
+    OCL_CHECK(err, err = event.wait());
+    end = OCL_CHECK(err, event.getProfilingInfo<CL_PROFILING_COMMAND_END>(&err));
+    start = OCL_CHECK(err, event.getProfilingInfo<CL_PROFILING_COMMAND_START>(&err));
+    nsduration1 = end - start;
 
     gettimeofday(&end_t1, NULL);
 	
     gettimeofday(&start_t2, NULL);
-   
-    unsigned long nsduration2 = xcl_run_kernel3d(world, krnl, 1, 1, 1);
+
+	nsduration2=0;	
 
     gettimeofday(&end_t2, NULL);
 
@@ -477,8 +460,8 @@ for i in range(0,numa+numb):
 code_string=code_string+';\n'
 
 for i in range(0,numa+numb):
-    code_string=code_string+'    map_output_buffer'+str(i)+' = (unsigned char *)clEnqueueMapBuffer(world.command_queue,\n'
-    code_string=code_string+'                                                             output_buffer'+str(i)+""",
+    code_string=code_string+'    map_output_buffer'+str(i)+' = (unsigned char *)q.enqueueMapBuffer(\n'
+    code_string=code_string+'                                                             *output_buffer'+str(i)+""",
                                                              CL_FALSE,
                                                              CL_MAP_READ,
                                                              0,
@@ -492,9 +475,8 @@ for i in range(0,numa+numb):
     else:
         temp_string='globaloutputsizeA'
     code_string=code_string+temp_string+""",
-                                                             0,
-                                                             NULL,
-                                                             NULL,
+                                                             nullptr,
+                                                             nullptr,
                                                              &err);\n"""
 code_string=code_string+"""    if (err != CL_SUCCESS) {
         printf("ERROR: Failed to read output size buffer %d\\n", err);
@@ -502,7 +484,7 @@ code_string=code_string+"""    if (err != CL_SUCCESS) {
     } else {
         printf("SUCCESS: Read output buffer.\\n");
     }
-    clFinish(world.command_queue);\n\n"""
+    q.finish();\n\n"""
 
 for i in range(0,numa+numb):
     if (numa==0):
@@ -521,12 +503,9 @@ for i in range(0,numa+numb):
 code_string=code_string+'\n'
 
 for i in range(0,numa+numb):		
-    code_string=code_string+"""    err = clEnqueueUnmapMemObject(world.command_queue,
-                                  output_buffer"""+str(i)+""",
-                                  map_output_buffer"""+str(i)+""",
-                                  0,
-                                  NULL,
-                                  NULL);\n"""
+    code_string=code_string+"""    err = q.enqueueUnmapMemObject( *output_buffer"""+str(i)+""",
+                                  map_output_buffer"""+str(i)+"""
+                                  );\n"""
 
 code_string=code_string+"""    if (err != CL_SUCCESS) {
         printf("Error: Failed to copy output from OpenCL buffer\\n");
@@ -534,7 +513,7 @@ code_string=code_string+"""    if (err != CL_SUCCESS) {
     } else {
         printf("SUCCESS: Copied output data into local memory.\\n");
     }
-    clFinish(world.command_queue);
+    q.finish();
 
     gettimeofday(&end_tout, NULL);
 """
@@ -612,15 +591,6 @@ code_string=code_string+"""
     printf("gettimeofday - Transfer_in time = %f (sec); Transfer_out time = %f (sec) \\n", tin, tout);
     printf("gettimeofday - Transfer_in Throughput = %f (MB/sec); Transfer_out Throughput = %f (MB/sec) \\n", mbpersec_in, mbpersec_out);
 	
-	clReleaseMemObject(input_buffer);\n"""
-
-for i in range(0,numa+numb):		
-    code_string=code_string+'    clReleaseMemObject(output_buffer'+str(i)+');\n'
-
-code_string=code_string+"""    clReleaseKernel(krnl);
-    clReleaseProgram(program);
-    xcl_release_world(world);
-    
     free(input_host);
     free(output_host);
 	
