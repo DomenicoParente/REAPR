@@ -56,9 +56,9 @@ ADM-PCIE-KU3 is also necessary to run the accelerator kernels.
 * python3.6+
 * virtualenv
 * pip
-* Xilinx Vivado HLS 2017.1
-* Xilinx SDAccel 2017.1
-* Synopsys VCS-MX (any version) for testbench simulation
+* Xilinx Vitis HLS 2020.2
+* Xilinx Vitis 2020.2
+* Xilinx Vivado 2020
 
 FILE HIERARCHY
 ==============
@@ -78,12 +78,18 @@ REAPR/
 
 SETUP
 =====
-The only setup necessary is to run the source_me.sh script in the root directory
+The setup necessary is to run the source_me.sh script in the root directory
 of this project.  This script will set up the REAPR_HOME environment variable
 that the compilation scripts depend upon and also generate a python virtual
 environment with Jinja2 pre-installed.
 
 $ source source_me.sh
+
+Under pcie_integration/rtl_prj/ folder, we need to modify rtl.sh file inserting the path
+of Xilinx tools, the ANML file path, the device name and the target.
+
+We need to set Vitis and Xilinx xrt to create the various components (host, kernel) by
+sourcing the Vitis settings64.{csh,sh} and the XRT /opt/xilinx/xrt/setup.sh.
 
 USAGE
 =====
