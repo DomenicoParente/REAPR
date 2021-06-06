@@ -131,7 +131,8 @@ LDFLAGS += -L$XILINX_XRT/lib/ -lOpenCL -lpthread
 
 ############################## Setting up Host Variables ##############################
 #Include Required Host Source Files
-HOST_SRCS +=../io_global_bandwidth_real.cpp
+CXXFLAGS += -I$(XF_PROJ_ROOT)/common/includes/xcl2
+HOST_SRCS += $(XF_PROJ_ROOT)/common/includes/xcl2/xcl2.cpp  ../io_global_bandwidth_real.cpp
 # Host compiler global settings
 CXXFLAGS += -fmessage-length=0
 LDFLAGS += -lrt -lstdc++ 

@@ -94,4 +94,4 @@ python $TOOL_PATH/makefile_gen.py $REPO_PATH $REPORT_SIZE $DDR_BANKS $IO_TEST $R
 #Compile the project using Vitis (including generating IP and XO files from the RTL kernel)
 echo "11.Compile"
 cd $PROJ_PATH/rtl_prj
-nohup make all TARGET=hw_emu DEVICE=xilinx_u200_xdma_201830_2
+nohup make all TARGET=hw DEVICE=xilinx_u200_xdma_201830_2

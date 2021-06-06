@@ -412,8 +412,8 @@ code_string=code_string+"""
 
 if (io_test == 0):
     code_string=code_string+"""    gettimeofday(&start_t1, NULL);
-   
-    OCL_CHECK(err, err = q.enqueueTask(bandwidth, nullptr, &event));
+  
+	OCL_CHECK(err, err = q.enqueueNDRangeKernel(bandwidth, cl::NullRange,cl::NDRange(1,1,1),cl::NDRange(1,1,1), nullptr, &event));
     OCL_CHECK(err, err = event.wait());
     end = OCL_CHECK(err, event.getProfilingInfo<CL_PROFILING_COMMAND_END>(&err));
     start = OCL_CHECK(err, event.getProfilingInfo<CL_PROFILING_COMMAND_START>(&err));
@@ -520,7 +520,7 @@ code_string=code_string+"""    if (err != CL_SUCCESS) {
 if (io_test == 0):
     code_string=code_string+"""   
     /* Check the results */
-   /*for(i=0; i<50; i++){
+   for(i=0; i<50; i++){
 		printf("Cycle %d, Symbol %c, Result vector%d:\\n", i+1, input_host[i], output_host[i]);
 		printf("       Matched rules: ");
 		for(unsigned int offset=0; offset<8; offset++){
@@ -529,8 +529,8 @@ if (io_test == 0):
 	          printf("%d  ", offset+1);
         }
 		printf("\\n");
-    }*/
-    /*for(i=0; i<2624; i++){//first 2624 bytes (or cycles)
+    }
+    for(i=0; i<2624; i++){//first 2624 bytes (or cycles)
         bool match = false;
         for(unsigned int k=0; k<FACTORB; k++){
             if (output_host[i*FACTORB + k] != 0) {match = true; break;}
@@ -546,7 +546,7 @@ if (io_test == 0):
             }
             printf("\\n");
         }
-    }*/
+    }
 """
 code_string=code_string+"""	
     /* Profiling information */
